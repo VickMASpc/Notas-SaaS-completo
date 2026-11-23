@@ -32,6 +32,13 @@ export default function App() {
 
   // Navegação SaaS
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'students' | 'teachers' | 'classes' | 'controls'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  function handleSwitchTab(tab) {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   // Filtros do Diretório de Alunos (8.000 alunos)
   const [searchTerm, setSearchTerm] = useState('');
@@ -675,44 +682,82 @@ export default function App() {
 
   return (
     <div className="saas-shell">
-      {/* Sidebar SaaS Lateral */}
-      <aside className="sidebar">
+      {/* Cabeçalho Mobile Fixo */}
+      <div className="mobile-header">
+        <button
+          type="button"
+          className="mobile-menu-btn"
+          aria-label="Abrir menu"
+          onClick={() => setMobileMenuOpen((v) => !v)}
+        >
+          ☰
+        </button>
+        <div className="mobile-brand">
+          <span className="brand-logo-sm">S</span>
+          <span>SIGE Pro</span>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => {
+            setNewStudentForm({ name: '', classId: dataset.classes[0]?.id || '' });
+            setShowAddStudentModal(true);
+          }}
+        >
+          + Aluno
+        </button>
+      </div>
+
+      {mobileMenuOpen && (
+        <div className="sidebar-backdrop" onClick={() => setMobileMenuOpen(false)} />
+      )}
+
+      {/* Sidebar SaaS Lateral (Drawer no Mobile) */}
+      <aside className={`sidebar ${mobileMenuOpen ? 'open' : ''}`}>
         <div className="brand">
           <div className="brand-logo">S</div>
           <div>
             <div className="brand-title">SIGE Pro</div>
             <div className="brand-sub">School Directory SaaS</div>
           </div>
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            aria-label="Fechar menu"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            &times;
+          </button>
         </div>
 
         <nav className="nav-menu">
           <button
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => handleSwitchTab('dashboard')}
           >
             <span>📊</span> Visão Geral & Turnos
           </button>
           <button
             className={`nav-item ${activeTab === 'students' ? 'active' : ''}`}
-            onClick={() => setActiveTab('students')}
+            onClick={() => handleSwitchTab('students')}
           >
             <span>🎓</span> Alunos & Faltas ({stats.totalStudents.toLocaleString('pt-BR')})
           </button>
           <button
             className={`nav-item ${activeTab === 'teachers' ? 'active' : ''}`}
-            onClick={() => setActiveTab('teachers')}
+            onClick={() => handleSwitchTab('teachers')}
           >
             <span>👨‍🏫</span> Corpo Docente ({stats.totalTeachers})
           </button>
           <button
             className={`nav-item ${activeTab === 'classes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('classes')}
+            onClick={() => handleSwitchTab('classes')}
           >
             <span>🏫</span> Turmas & Grades ({stats.totalClasses})
           </button>
           <button
             className={`nav-item ${activeTab === 'controls' ? 'active' : ''}`}
-            onClick={() => setActiveTab('controls')}
+            onClick={() => handleSwitchTab('controls')}
           >
             <span>🎛️</span> Controles Granulares
           </button>
@@ -1005,7 +1050,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="table-card">
+            <div className="table-card desktop-table-wrap">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -1105,6 +1150,69 @@ export default function App() {
                 </tbody>
               </table>
             </div>
+
+            {/* Cards Responsivos para Mobile (<= 768px) */}
+            <div className="mobile-cards-list">
+              {pagedStudents.map((stu) => (
+                <div key={stu.id} className={`mobile-entity-card ${stu.attendancePercent < 75 ? 'card-alert' : ''}`}>
+                  <div className="mobile-card-top">
+                    <div>
+                      <button className="link-btn mobile-card-title" onClick={() => setSelectedStudentId(stu.id)}>
+                        {stu.name}
+                      </button>
+                      <div className="mono">RA {stu.ra}</div>
+                    </div>
+                    <span className={getGradeBadgeClass(stu.overallAvg)}>{stu.overallAvg}</span>
+                  </div>
+
+                  <div className="mobile-card-tags">
+                    <span className="class-pill">{stu.classCode}</span>
+                    <span className="muted-sm">{stu.shift}</span>
+                    <span className={`mod-badge mod-${stu.modality.replace(/\s+/g, '-').toLowerCase()}`}>
+                      {stu.modality}
+                    </span>
+                    <span className={getStatusBadgeClass(stu.status)}>{stu.status}</span>
+                  </div>
+
+                  <div className="mobile-card-metrics">
+                    <div className="mobile-metric-item">
+                      <span>Faltas</span>
+                      <div className="skip-stepper">
+                        <button onClick={() => handleQuickSkipAdjust(stu, -1, false)}>-</button>
+                        <span>{stu.totalSkips}</span>
+                        <button onClick={() => handleQuickSkipAdjust(stu, 1, false)}>+</button>
+                      </div>
+                    </div>
+                    <div className="mobile-metric-item">
+                      <span>Gazetas</span>
+                      <div className="skip-stepper skip-gazeta">
+                        <button onClick={() => handleQuickSkipAdjust(stu, -1, true)}>-</button>
+                        <span>{stu.isolatedSkips}</span>
+                        <button onClick={() => handleQuickSkipAdjust(stu, 1, true)}>+</button>
+                      </div>
+                    </div>
+                    <div className="mobile-metric-item">
+                      <span>Frequência</span>
+                      <strong className={stu.attendancePercent < 75 ? 'text-danger' : 'text-ok'}>
+                        {stu.attendancePercent}%
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="mobile-card-actions">
+                    <button className="btn btn-primary btn-sm" onClick={() => setSelectedStudentId(stu.id)}>
+                      Abrir Boletim
+                    </button>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteStudent(stu.id)}>
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {pagedStudents.length === 0 && (
+                <div className="empty-cell panel">Nenhum aluno encontrado com os filtros selecionados.</div>
+              )}
+            </div>
           </section>
         )}
 
@@ -1141,7 +1249,7 @@ export default function App() {
               </button>
             </div>
 
-            <div className="table-card">
+            <div className="table-card desktop-table-wrap">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -1211,6 +1319,63 @@ export default function App() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Cards Responsivos de Professores para Mobile */}
+            <div className="mobile-cards-list">
+              {filteredTeachers.map((t) => (
+                <div key={t.id} className="mobile-entity-card">
+                  <div className="mobile-card-top">
+                    <div>
+                      <div className="teacher-name">{t.name}</div>
+                      <div className="mono">{t.registration} • {t.area}</div>
+                      <div className="muted-sm">{t.email}</div>
+                    </div>
+                    <span
+                      className={`status-tag ${
+                        t.status === 'Efetivo Ativo'
+                          ? 'status-ok'
+                          : t.status === 'Substituto'
+                          ? 'status-warn'
+                          : 'status-danger'
+                      }`}
+                    >
+                      {t.status}
+                    </span>
+                  </div>
+
+                  <div className="muted-sm">
+                    <strong>Componentes:</strong> {t.subjects.join(', ')}
+                  </div>
+                  <div className="muted-sm">
+                    <strong>Turnos:</strong> {t.shifts.join(' • ')} ({t.modalities.join(', ')})
+                  </div>
+
+                  <div className="mobile-card-metrics">
+                    <div className="mobile-metric-item">
+                      <span>Carga</span>
+                      <strong>{t.weeklyHours}h ({t.classesCount} turmas)</strong>
+                    </div>
+                    <div className="mobile-metric-item">
+                      <span>Ausências (Skips)</span>
+                      <div className="skip-stepper">
+                        <button onClick={() => handleTeacherSkipDelta(t.id, -1)}>-</button>
+                        <span>{t.teacherSkips}</span>
+                        <button onClick={() => handleTeacherSkipDelta(t.id, 1)}>+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mobile-card-actions">
+                    <button className="btn btn-secondary btn-sm" onClick={() => setEditingTeacher({ ...t })}>
+                      Editar Docente
+                    </button>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteTeacher(t.id)}>
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -1998,6 +2163,49 @@ export default function App() {
           </form>
         </div>
       )}
+      {/* Barra de Navegação Inferior Fixa para Mobile */}
+      <nav className="mobile-bottom-nav" aria-label="Navegação mobile">
+        <button
+          type="button"
+          className={activeTab === 'dashboard' ? 'active' : ''}
+          onClick={() => handleSwitchTab('dashboard')}
+        >
+          <span>📊</span>
+          <small>Visão</small>
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'students' ? 'active' : ''}
+          onClick={() => handleSwitchTab('students')}
+        >
+          <span>🎓</span>
+          <small>Alunos</small>
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'teachers' ? 'active' : ''}
+          onClick={() => handleSwitchTab('teachers')}
+        >
+          <span>👨‍🏫</span>
+          <small>Docentes</small>
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'classes' ? 'active' : ''}
+          onClick={() => handleSwitchTab('classes')}
+        >
+          <span>🏫</span>
+          <small>Turmas</small>
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'controls' ? 'active' : ''}
+          onClick={() => handleSwitchTab('controls')}
+        >
+          <span>🎛️</span>
+          <small>Controles</small>
+        </button>
+      </nav>
     </div>
   );
 }
